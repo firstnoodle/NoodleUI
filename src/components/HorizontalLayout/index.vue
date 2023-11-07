@@ -5,9 +5,10 @@
             side="left"
             :visible="asideLeftVisible"
             :width="localAsideLeftWidth"
-            @resize-start="setResizing(true)"
+            @resize-start="resizing = true"
             @resize="onResizeAsideLeft"
-            @resize-end="setResizing(false)"
+            @resize-end="resizing = false"
+            @transitioning="onTransitionAsideLeft"
         >
             <slot name="aside-left" />
         </ui-aside>
@@ -18,8 +19,8 @@
                 resizing ? null : 'transition-padding duration-500 ease-in-out'
             ]"
             :style="{
-                paddingLeft: localAsideLeftWidth+'px',
-                paddingRight: localAsideRightWidth+'px',
+                paddingLeft: paddingLeft+'px',
+                paddingRight: paddingRight+'px',
             }"
         >
             <slot name="main" />
@@ -29,9 +30,10 @@
             side="right"
             :visible="asideRightVisible"
             :width="localAsideRightWidth"
-            @resize-start="setResizing(true)"
+            @resize-start="resizing = true"
             @resize="onResizeAsideRight"
-            @resize-end="setResizing(false)"
+            @resize-end="resizing = false"
+            @transitioning="onTransitionAsideRight"
         >
             <slot name="aside-right" />
         </ui-aside>
@@ -43,7 +45,10 @@
 import { defineEmits, defineProps, ref, watch, withDefaults } from 'vue'
 import UiAside from './Aside.vue';
 
-const emit = defineEmits(['aside-left-transition-end', 'aside-right-transition-end'])
+const emit = defineEmits([
+    'aside-left-transition-end',
+    'aside-right-transition-end'
+])
 
 const defaultWidth:number = 256
 const defaultBgColorClass = 'bg-white'
@@ -70,19 +75,25 @@ const props = withDefaults(defineProps<Props>(), {
     mainBgColorClass: defaultBgColorClass,
 })
 
+// Resizing is when one of the asides is resized by dragging - then we remove transition classes
 const resizing = ref(false)
-const localAsideLeftWidth = ref(props.asideLeftVisible ? props.asideLeftWidth : 0);
+
+// we cannot mutate props, so we create a local copy - TODO... should we not just emit the new value
+const localAsideLeftWidth = ref(props.asideLeftWidth);
 const localAsideRightWidth = ref(props.asideRightVisible ? props.asideRightWidth : 0);
-const onResizeAsideLeft = (size:number) => localAsideLeftWidth.value = size
-const onResizeAsideRight = (size:number) => localAsideRightWidth.value = size
+const paddingLeft = ref(props.asideLeftWidth);
+const paddingRight = ref(props.asideRightWidth);
+const onResizeAsideLeft = (size:number) => localAsideLeftWidth.value = paddingLeft.value = size
+const onTransitionAsideLeft = (transitioning: boolean) => console.log('transitioning left', transitioning)
+const onResizeAsideRight = (size:number) => localAsideRightWidth.value = paddingRight.value = size
+const onTransitionAsideRight = (transitioning: boolean) => console.log('transitioning right', transitioning)
 
-watch(() => props.asideLeftVisible, (newValue) => {
-    if(newValue) {
-        localAsideLeftWidth.value = props.asideLeftWidth
-    } else {
-        localAsideLeftWidth.value = 0
-    }
-})
+// For transitioning the padding on <main>
+watch(() => props.asideLeftVisible, (newValue) => paddingLeft.value = newValue ? localAsideLeftWidth.value : 0)
+watch(() => props.asideRightVisible, (newValue) => paddingRight.value = newValue ? localAsideRightWidth.value : 0)
 
-const setResizing = (value:boolean) => resizing.value = value
+// For triggering transition to a specific width
+watch(() => props.asideLeftWidth, newValue => localAsideLeftWidth.value = paddingLeft.value = newValue)
+watch(() => props.asideRightWidth, newValue => localAsideRightWidth.value = paddingRight.value = newValue)
+
 </script>

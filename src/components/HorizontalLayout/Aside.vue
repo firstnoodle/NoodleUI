@@ -1,12 +1,16 @@
 <template>
     <transition
         enter-active-class="transform"
-        :enter-class="enterClass"
+        :enter-from-class="enterClass"
         enter-to-class=""
         leave-active-class="transform"
         leave-class="translate-x-0"
         :leave-to-class="leaveToClass"
-        @after-enter="aside.focus()"
+        @before-leave="onTransition(true, false)"
+        @after-leave="onTransition(false, false)"
+        @before-enter="onTransition(true, false)"
+        @after-enter="onTransition(false, true)"
+
     >
         <aside
             v-show="visible"
@@ -35,16 +39,25 @@
 <script setup lang="ts">
 import { computed, defineEmits, defineProps, ref, withDefaults } from 'vue'
 
-const emit = defineEmits(['resize-start', 'resize', 'resize-end'])
+const emit = defineEmits([
+    'resize-start',
+    'resize',
+    'resize-end',
+    'transitioning'
+])
 
 interface Props {
     visible?: boolean
     side?: 'left' | 'right'
+    maxWidth?: number
+    minWidth?: number
     width: number
 }
 const props = withDefaults(defineProps<Props>(), {
     visible: true,
     side: 'left',
+    maxWidth: 500,
+    minWidth: 160,
     width: 256
 })
 
@@ -56,6 +69,7 @@ const leaveToClass = computed(() =>  props.side === 'left' ? '-translate-x-full'
 let startX:number
 let startWidth:number
 let dragging = ref(false)
+let transitioning = ref(false)
 
 const startDrag = (event:MouseEvent) => {
     startX = event.pageX
@@ -70,7 +84,21 @@ const onDrag = (event:MouseEvent) => {
     const deltaX = props.side === 'left' 
         ? event.pageX - startX
         : startX - event.pageX 
-    emit('resize', startWidth + deltaX)
+
+    const dragTo = startWidth+deltaX
+    let result
+
+    if(dragTo >= props.maxWidth) {
+        result = props.maxWidth
+    } else if(dragTo <= props.minWidth) {
+        result = props.minWidth
+    } else {
+        result = dragTo
+    }
+
+    if(result !== props.width) {
+        emit('resize', result)
+    }
 }
 
 const endDrag = () => {
@@ -80,9 +108,11 @@ const endDrag = () => {
     emit('resize-end')
 }
 
-defineExpose({
-    transitionTo: (width:number) => {
-        console.log(width)
+const onTransition = (transitionActive: boolean, focusAside: boolean) => {
+    if(focusAside) {
+        aside.value.focus()
     }
-})
+    transitioning.value = transitionActive
+    emit('transitioning', transitioning.value)
+}
 </script>
