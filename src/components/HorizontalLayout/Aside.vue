@@ -38,6 +38,7 @@
 
 <script setup lang="ts">
 import { computed, defineEmits, defineProps, ref, withDefaults } from 'vue'
+import clamp from '@/utils/clamp'
 
 const emit = defineEmits([
     'resize-start',
@@ -86,15 +87,7 @@ const onDrag = (event:MouseEvent) => {
         : startX - event.pageX 
 
     const dragTo = startWidth+deltaX
-    let result
-
-    if(dragTo >= props.maxWidth) {
-        result = props.maxWidth
-    } else if(dragTo <= props.minWidth) {
-        result = props.minWidth
-    } else {
-        result = dragTo
-    }
+    const result = clamp(dragTo, props.minWidth, props.maxWidth)
 
     if(result !== props.width) {
         emit('resize', result)
